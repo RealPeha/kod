@@ -1,0 +1,19 @@
+{
+  "name": "kod",
+  "version": "1.0.0",
+  "main": "index.js",
+  "license": "MIT",
+  "scripts": {
+    "dev": "parcel index.html"
+  },
+  "dependencies": {
+    "codemirror": "^5.57.0",
+    "outdent": "^0.7.1",
+    "react": "^16.13.1",
+    "react-codemirror2": "^7.2.1",
+    "react-dom": "^16.13.1"
+  },
+  "devDependencies": {
+    "parcel-bundler": "^1.12.4"
+  }
+}

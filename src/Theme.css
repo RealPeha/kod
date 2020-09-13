@@ -1,0 +1,44 @@
+.code-editor .CodeMirror {
+    background: #fff;
+    color: #050505;
+}
+
+.code-editor .CodeMirror-gutters {
+    background: #fff;
+    border-right: 1px dashed #050505;
+}
+
+.code-editor .CodeMirror-linenumber {
+    padding: 0 1px;
+    text-align: center;
+}
+
+.code-editor span.cm-keyword {
+    color: #050505;
+    font-weight: bold;
+}
+
+.code-editor span.cm-def,
+.code-editor span.cm-variable,
+.code-editor span.cm-attribute,
+.code-editor span.cm-variable-2 {
+    color: #050505;
+}
+
+.code-editor span.cm-property {
+    color: #263238;
+}
+
+.code-editor span.cm-atom {
+    color: #424242;
+    font-weight: bold;
+}
+
+.code-editor span.cm-number {
+    color: #F44336;
+}
+
+.code-editor span.cm-string,
+.code-editor span.cm-string-2 {
+    color: #9E9E9E;
+}
