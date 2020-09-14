@@ -1,9 +1,13 @@
-.code-editor .CodeMirror {
+.CodeMirror {
+    font-size: 14px;
+}
+
+.code-editor .base16-light .CodeMirror {
     background: #fff;
     color: #050505;
 }
 
-.code-editor .CodeMirror-gutters {
+.code-editor .base16-light .CodeMirror-gutters {
     background: #fff;
     border-right: 1px dashed #050505;
 }
@@ -13,32 +17,32 @@
     text-align: center;
 }
 
-.code-editor span.cm-keyword {
+.code-editor .base16-light span.cm-keyword {
     color: #050505;
     font-weight: bold;
 }
 
-.code-editor span.cm-def,
-.code-editor span.cm-variable,
-.code-editor span.cm-attribute,
-.code-editor span.cm-variable-2 {
+.code-editor .base16-light span.cm-def,
+.code-editor .base16-light span.cm-variable,
+.code-editor .base16-light span.cm-attribute,
+.code-editor .base16-light span.cm-variable-2 {
     color: #050505;
 }
 
-.code-editor span.cm-property {
+.code-editor .base16-light span.cm-property {
     color: #263238;
 }
 
-.code-editor span.cm-atom {
+.code-editor .base16-light span.cm-atom {
     color: #424242;
     font-weight: bold;
 }
 
-.code-editor span.cm-number {
+.code-editor .base16-light span.cm-number {
     color: #F44336;
 }
 
-.code-editor span.cm-string,
-.code-editor span.cm-string-2 {
+.code-editor .base16-light span.cm-string,
+.code-editor .base16-light span.cm-string-2 {
     color: #9E9E9E;
 }

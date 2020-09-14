@@ -1,14 +1,17 @@
-import React, { useEffect, useRef, useMemo } from 'react'
+import React, { useEffect, useRef, useMemo, useCallback } from 'react'
 import { Controlled as CodeMirror } from 'react-codemirror2'
+import axios from 'axios'
 
 import useMultipleState from './utils/useMultipleState'
 import preventInfiniteLoop from './utils/preventInfiniteLoop'
+import isUrl from './utils/isUrl'
 
 import './Playground.css'
 
 import 'codemirror/addon/hint/show-hint.css';
 import 'codemirror/lib/codemirror.css'
-import 'codemirror/theme/base16-light.css'
+import 'codemirror/theme/ayu-dark.css'
+// import 'codemirror/theme/base16-light.css'
 import './Theme.css'
 
 import 'codemirror/mode/javascript/javascript'
@@ -19,7 +22,8 @@ import 'codemirror/addon/edit/closebrackets'
 const codeMirrorOptions = {
     extraKeys: { 'Shift-Tab': 'autocomplete' },
     mode: { name: 'javascript', globalVars: true },
-    theme: 'base16-light',
+    // theme: 'base16-light',
+    theme: 'ayu-dark',
     lineNumbers: true,
     scrollbarStyle: null,
     lineWrapping: true,
@@ -36,7 +40,6 @@ const getBlobURL = (code, type) => {
 
 const Playground = ({
     options = codeMirrorOptions,
-    dependencies = [],
     files: inputFiles = [{ name: 'index', code: '' }],
 }) => {
     const [{
@@ -44,49 +47,56 @@ const Playground = ({
         fileName,
         editFileName,
         editableFileNameElement,
+        externalDependenciesCode,
     }, setState] = useMultipleState({
         files: inputFiles,
         fileName: inputFiles.find(({ name }) => name === 'index').name,
         editFileName: undefined,
         editableFileNameElement: undefined,
+        externalDependenciesCode: [],
     })
 
     const iframeRef = useRef()
+    const codeEditorRef = useRef()
+    const externalDependencies = useRef([])
 
     const file = useMemo(() => files.find(({ name }) => name === fileName), [fileName])
 
-    const executeCode = (jsCode) => {
+    const executeCode = useCallback((jsCode) => {
         const js = `
-            let write = (...args) => {
-                document.querySelector('#logs').innerHTML = args.map(arg => {
-                    if (arg === null) {
-                        return 'null'
-                    }
-
-                    if (arg === undefined) {
-                        return 'undefined'
-                    }
-
-                    if (typeof arg === 'object') {
-                        return JSON.stringify(arg)
-                    }
-
-                    return arg.toString()
-                }).join(', ')
-
-                return 'jopa'
-            }
-
             try {
-                const canvas = document.querySelector('#sandbox')
-                const ctx = canvas.getContext('2d')
+                let write = (...args) => {
+                    document.querySelector('#err').innerHTML = ''
+                    document.querySelector('#logs').innerHTML = args.map(arg => {
+                        if (arg === null) {
+                            return 'null'
+                        }
+    
+                        if (arg === undefined) {
+                            return 'undefined'
+                        }
+    
+                        if (typeof arg === 'object') {
+                            return JSON.stringify(arg)
+                        }
+    
+                        return arg.toString()
+                    }).join(', ')
+    
+                    return 'jopa'
+                }
+                
+                let canvas = document.querySelector('#sandbox')
+                let ctx = canvas.getContext('2d')
 
                 canvas.width = window.innerWidth;
                 canvas.height = window.innerHeight;
 
                 ${jsCode}
             } catch (e) {
-                const err=document.querySelector('#err');err.style.display='block';err.innerHTML=e
+                const err=document.querySelector('#err');
+                err.style.display='block';
+                err.innerHTML=e
             }
         `
 
@@ -109,9 +119,6 @@ const Playground = ({
                 <div id='err'></div>
                 <canvas id='sandbox'></canvas>
 
-                ${dependencies.map(url => {
-                    return `<script src='${url}'></script>`
-                }).join('\n')}
                 <script src='${getBlobURL(js, 'text/javascript')}'></script>
             </body></html>
         `
@@ -119,7 +126,7 @@ const Playground = ({
         URL.revokeObjectURL(iframeRef.current.src)
         
         iframeRef.current.src = getBlobURL(source, 'text/html')
-    }
+    }, [])
 
     const buildCode = (files) => {
         const indexFile = files.find(({ name }) => name === 'index')
@@ -128,6 +135,14 @@ const Playground = ({
         const bundle = indexFile.code.replace(
             /^(?:(?!\/[\/*]))([ \t]*)(.*)import [\"\'\`](.+)(?:\.js)?[\"\'\`]\n(?![^\*]+\*\/)/gm,
             (match, tabs, prefix, fileName) => {
+                if (isUrl(fileName)) {
+                    if (!externalDependenciesCode[fileName]) {
+                        externalDependencies.current = [...externalDependencies.current, fileName]
+                    }
+
+                    return externalDependenciesCode[fileName] || ''
+                }
+
                 const file = otherFile.find(({ name }) => name === fileName)
 
                 return file ? file.code + '\n' : `throw new Error('File ${fileName} not found')\n`
@@ -138,6 +153,10 @@ const Playground = ({
     }
 
     const handleChange = (editor, data, code) => {
+        if (!codeEditorRef.current.classList.contains('hide-cursor')) {
+            codeEditorRef.current.classList.add('hide-cursor')
+        }
+
         const updateFiles = files.map(file => {
             if (file.name === fileName) {
                 file.code = code
@@ -146,9 +165,10 @@ const Playground = ({
             return file
         })
 
+        setState({ files: updateFiles })
+
         const bundle = buildCode(updateFiles)
 
-        setState({ files: updateFiles })
         executeCode(bundle)
     }
 
@@ -187,23 +207,31 @@ const Playground = ({
     const saveFileName = () => {
         const newFilename = editableFileNameElement.innerHTML.trim()
 
-        const canUpdate = newFilename
-            && newFilename.length < 50
+        const canUpdate = newFilename.length < 50
             && !files.some(({ name }) => name === newFilename)
 
         if (canUpdate) {
-            const updateFiles = files.map(file => {
-                if (file.name === editFileName) {
-                    file.name = newFilename
-                }
-    
-                return file
-            })
+            if (!newFilename) {
+                const updatedFiles = files.filter(({ name }) => name !== editFileName)
 
-            setState({
-                fileName: newFilename,
-                files: updateFiles,
-            })
+                setState({
+                    fileName: 'index',
+                    files: updatedFiles,
+                })
+            } else {
+                const updatedFiles = files.map(file => {
+                    if (file.name === editFileName) {
+                        file.name = newFilename
+                    }
+        
+                    return file
+                })
+
+                setState({
+                    fileName: newFilename,
+                    files: updatedFiles,
+                })
+            }
         } else {
             editableFileNameElement.innerHTML = editFileName // restore file name
         }
@@ -231,6 +259,14 @@ const Playground = ({
         const bundle = buildCode(files)
 
         executeCode(bundle)
+
+        const handleMouseMove = () => {
+            codeEditorRef.current.classList.remove('hide-cursor')
+        }
+
+        codeEditorRef.current.addEventListener('mousemove', handleMouseMove)
+
+        return () => codeEditorRef.current.removeEventListener('mousemove', handleMouseMove)
     }, [])
 
     useEffect(() => {
@@ -245,10 +281,29 @@ const Playground = ({
         }
     }, [editableFileNameElement, editFileName])
 
+    useEffect(() => {
+        const load = async () => {
+            for (const dependency of externalDependencies.current) {
+                if (!externalDependenciesCode[dependency]) {
+                    const dependencyCode = await axios.get(dependency)
+
+                    setState({
+                        externalDependenciesCode: {
+                            ...externalDependenciesCode,
+                            [dependency]: dependencyCode.data,
+                        },
+                    })
+                }
+            }
+        }
+
+        load()
+    }, [externalDependencies.current])
+
     return (
         <div className='playground'>
-            <div className='code-wrapper'>
-                <div className='files-wrapper'>
+            <div className='code-wrapper hide-cursor' ref={codeEditorRef}>
+                <div className={`files-wrapper ${options.theme}`}>
                     {files.map(({ name }) => {
                         return (
                             <div
