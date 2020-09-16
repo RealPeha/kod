@@ -92,7 +92,7 @@ const Playground = ({
                 canvas.width = window.innerWidth;
                 canvas.height = window.innerHeight;
 
-                ${jsCode}
+                eval(\`${jsCode.replace(/\`/g, '\\`')}\`)
             } catch (e) {
                 const err=document.querySelector('#err');
                 err.style.display='block';
@@ -145,11 +145,11 @@ const Playground = ({
 
                 const file = otherFile.find(({ name }) => name === fileName)
 
-                return file ? file.code + '\n' : `throw new Error('File ${fileName} not found')\n`
+                return file ? preventInfiniteLoop(file.code) + '\n' : `throw new Error('File ${fileName} not found')\n`
             }
         );
 
-        return preventInfiniteLoop(bundle)
+        return bundle
     }
 
     const handleChange = (editor, data, code) => {
