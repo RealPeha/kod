@@ -65,8 +65,7 @@ const Playground = ({
     const executeCode = useCallback((jsCode) => {
         const js = `
             try {
-                let write = (...args) => {
-                    document.querySelector('#err').innerHTML = ''
+                window.write = (...args) => {
                     document.querySelector('#logs').innerHTML = args.map(arg => {
                         if (arg === null) {
                             return 'null'
@@ -86,14 +85,16 @@ const Playground = ({
                     return 'jopa'
                 }
                 
-                let canvas = document.querySelector('#sandbox')
-                let ctx = canvas.getContext('2d')
+                window.canvas = document.querySelector('#sandbox')
+                window.ctx = canvas.getContext('2d')
 
                 canvas.width = window.innerWidth;
                 canvas.height = window.innerHeight;
 
                 eval(\`${jsCode.replace(/\`/g, '\\`')}\`)
             } catch (e) {
+                console.log(e)
+                document.querySelector('#logs').innerHTML = ''
                 const err=document.querySelector('#err');
                 err.style.display='block';
                 err.innerHTML=e
@@ -129,8 +130,12 @@ const Playground = ({
     }, [])
 
     const buildCode = (files) => {
+        const start = performance.now()
+
         const indexFile = files.find(({ name }) => name === 'index')
         const otherFile = files.filter(({ name }) => name !== 'index')
+
+        let dependencyCode = ''
 
         const bundle = indexFile.code.replace(
             /^(?:(?!\/[\/*]))([ \t]*)(.*)import [\"\'\`](.+)(?:\.js)?[\"\'\`]\n(?![^\*]+\*\/)/gm,
@@ -140,7 +145,9 @@ const Playground = ({
                         externalDependencies.current = [...externalDependencies.current, fileName]
                     }
 
-                    return externalDependenciesCode[fileName] || ''
+                    dependencyCode += externalDependenciesCode[fileName] || ''
+
+                    return ''
                 }
 
                 const file = otherFile.find(({ name }) => name === fileName)
@@ -149,7 +156,12 @@ const Playground = ({
             }
         );
 
-        return bundle
+        console.log(`Built in ${(performance.now() - start).toPrecision(2)}ms`)
+
+        return `
+            ${dependencyCode}
+            eval(\`${bundle.replace(/`/g, '\\`')}\`)
+        `
     }
 
     const handleChange = (editor, data, code) => {
